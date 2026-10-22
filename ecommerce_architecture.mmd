@@ -1,0 +1,25 @@
+flowchart TD
+    A["E-commerce Dataset<br/>Orders, Customers, Products,<br/>Items, Payments, Reviews"]
+    B["HDFS<br/>Processed Parquet Datasets"]
+    C["Apache Spark<br/>Data Processing & Joins"]
+    D["Category Revenue Analytics"]
+    E["ALS Collaborative Filtering"]
+    F["Popularity Baseline"]
+    G["PostgreSQL<br/>Analytics Tables & SQL Benchmarks"]
+    H["HDFS<br/>Recommendation Outputs"]
+    I["Evaluation<br/>Precision@5 & Recall@5"]
+    J["Visualizations & Project Report"]
+
+    A --> B
+    B --> C
+    C --> D
+    C --> E
+    C --> F
+    D --> G
+    E --> H
+    F --> H
+    E --> I
+    F --> I
+    G --> J
+    H --> J
+    I --> J

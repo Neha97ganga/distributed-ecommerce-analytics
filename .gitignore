@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+numpy-env/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local datasets and generated outputs
+data/
+datasets/
+outputs/
+*.parquet
+*.csv
+*.log
+
+# Editors and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
