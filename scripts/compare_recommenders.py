@@ -14,22 +14,24 @@ output = "hdfs://localhost:9000/ecommerce/recommendations/"
 
 orders = spark.read.parquet(base + "orders.parquet")
 items = spark.read.parquet(base + "order_items.parquet")
+customers = spark.read.parquet(base + "customers.parquet")
 
 interactions = (
     orders.filter(F.col("order_status") == "delivered")
     .select("order_id", "customer_id")
+    .join(customers.select("customer_id", "customer_unique_id"), "customer_id")
     .join(items.select("order_id", "product_id"), "order_id")
     .filter(
-        F.col("customer_id").isNotNull()
+        F.col("customer_unique_id").isNotNull()
         & F.col("product_id").isNotNull()
     )
-    .groupBy("customer_id", "product_id")
+    .groupBy("customer_unique_id", "product_id")
     .agg(F.count("*").cast("float").alias("rating"))
 )
 
-user_map = interactions.select("customer_id").distinct().withColumn(
+user_map = interactions.select("customer_unique_id").distinct().withColumn(
     "user_id",
-    (F.row_number().over(Window.orderBy("customer_id")) - 1).cast("int")
+    (F.row_number().over(Window.orderBy("customer_unique_id")) - 1).cast("int")
 )
 
 product_map = interactions.select("product_id").distinct().withColumn(
@@ -38,7 +40,7 @@ product_map = interactions.select("product_id").distinct().withColumn(
 )
 
 data = (
-    interactions.join(user_map, "customer_id")
+    interactions.join(user_map, "customer_unique_id")
     .join(product_map, "product_id")
     .select("user_id", "product_num", "rating")
 )
@@ -106,11 +108,16 @@ pop_top5 = (
     pop_candidates
     .withColumn("position", F.row_number().over(pop_window))
     .filter(F.col("position") <= 5)
-    .select("user_id", "product_num")
+    .select("user_id", "product_num", "position")
 
 )
-pop_top5.write.mode("overwrite").parquet(
-    output + "comparison_popularity_top5"
+(
+    pop_top5
+    .join(user_map, "user_id")
+    .join(product_map, "product_num")
+    .select("customer_unique_id", "product_id", "position")
+    .write.mode("overwrite")
+    .parquet(output + "comparison_popularity_top5")
 )
 # ALS model, trained on exactly the same training data
 als = ALS(
@@ -149,10 +156,15 @@ als_top5 = (
     als_exploded
     .withColumn("position", F.row_number().over(als_window))
     .filter(F.col("position") <= 5)
-    .select("user_id", "product_num")
+    .select("user_id", "product_num", "position")
 )
-als_top5.write.mode("overwrite").parquet(
-    output + "comparison_als_top5"
+(
+    als_top5
+    .join(user_map, "user_id")
+    .join(product_map, "product_num")
+    .select("customer_unique_id", "product_id", "position")
+    .write.mode("overwrite")
+    .parquet(output + "comparison_als_top5")
 )
 
 def evaluate(name, recommendations):
@@ -168,10 +180,15 @@ def evaluate(name, recommendations):
         .agg(F.count("*").alias("recommended"))
     )
 
+    relevant = eligible_test.groupBy("user_id").agg(
+        F.count("*").alias("relevant")
+    )
+
     per_user = (
         eval_users
         .join(counts, "user_id", "left")
         .join(hits, "user_id", "left")
+        .join(relevant, "user_id", "inner")
         .fillna({"recommended": 0, "hits": 0})
         .withColumn(
             "precision",
@@ -182,32 +199,22 @@ def evaluate(name, recommendations):
         )
         .withColumn(
             "recall",
-            F.col("hits") / F.lit(1.0)
+            F.when(
+                F.col("relevant") > 0,
+                F.col("hits") / F.col("relevant")
+            ).otherwise(0.0)
         )
     )
-    print(f"\n{name} - total hits:")
+
+    print(f"\\n{name} - total hits:")
     print(per_user.agg(F.sum("hits")).first()[0])
 
     print(f"{name} - users grouped by hit count:")
     per_user.groupBy("hits").count().orderBy("hits").show()
 
-    print(f"{name} - users grouped by recall:")
-    per_user.groupBy("recall").count().orderBy("recall").show(20)
-    # Calculate recall using each user's total held-out relevant items.
-    relevant = eligible_test.groupBy("user_id").agg(
-        F.count("*").alias("relevant")
-    )
-    print(f"\n{name}: relevant-item counts among hit users")
+    print(f"{name} - relevant-item counts among hit users:")
     per_user.filter(F.col("hits") > 0) \
         .groupBy("relevant").count().orderBy("relevant").show()
-
-    print(f"{name}: recommendation counts per user")
-    per_user.groupBy("recommended").count().orderBy("recommended").show()
-    per_user = (
-        per_user.drop("recall")
-        .join(relevant, "user_id", "inner")
-        .withColumn("recall", F.col("hits") / F.col("relevant"))
-    )
 
     row = per_user.agg(
         F.avg("precision").alias("precision_at_5"),
@@ -218,7 +225,14 @@ def evaluate(name, recommendations):
         f"{name}: Precision@5={row['precision_at_5']:.6f}, "
         f"Recall@5={row['recall_at_5']:.6f}"
     )
-    return (name, float(row["precision_at_5"]), float(row["recall_at_5"]))
+
+    return (
+        name,
+        float(row["precision_at_5"]),
+        float(row["recall_at_5"])
+    )
+
+
 pop_hit_users = (
     pop_top5.join(
         eligible_test.select("user_id", "product_num"),
