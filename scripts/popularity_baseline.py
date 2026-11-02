@@ -14,22 +14,24 @@ output = "hdfs://localhost:9000/ecommerce/recommendations/"
 # Rebuild exactly the same interaction data and ID mappings
 orders = spark.read.parquet(base + "orders.parquet")
 items = spark.read.parquet(base + "order_items.parquet")
+customers = spark.read.parquet(base + "customers.parquet")
 
 interactions = (
     orders.filter(F.col("order_status") == "delivered")
     .select("order_id", "customer_id")
+    .join(customers.select("customer_id", "customer_unique_id"), "customer_id")
     .join(items.select("order_id", "product_id"), "order_id")
     .filter(
-        F.col("customer_id").isNotNull()
+        F.col("customer_unique_id").isNotNull()
         & F.col("product_id").isNotNull()
     )
-    .groupBy("customer_id", "product_id")
+    .groupBy("customer_unique_id", "product_id")
     .agg(F.count("*").cast("float").alias("rating"))
 )
 
-user_map = interactions.select("customer_id").distinct().withColumn(
+user_map = interactions.select("customer_unique_id").distinct().withColumn(
     "user_id",
-    (F.row_number().over(Window.orderBy("customer_id")) - 1).cast("int")
+    (F.row_number().over(Window.orderBy("customer_unique_id")) - 1).cast("int")
 )
 
 product_map = interactions.select("product_id").distinct().withColumn(
@@ -39,7 +41,7 @@ product_map = interactions.select("product_id").distinct().withColumn(
 
 data = (
     interactions
-    .join(user_map, "customer_id")
+    .join(user_map, "customer_unique_id")
     .join(product_map, "product_id")
     .select("user_id", "product_num", "rating")
 )
@@ -135,7 +137,7 @@ print("Recall@5:", metrics["Recall@5"])
 (
     top5.join(user_map, "user_id")
     .join(product_map, "product_num")
-    .select("customer_id", "product_id", "position")
+    .select("customer_unique_id", "product_id", "position")
     .write.mode("overwrite").parquet(output + "popularity_top5")
 )
 
