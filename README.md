@@ -90,27 +90,30 @@ product identifiers.
 
 ## 7. Recommendation Evaluation
 
-The shared evaluation used:
+Both recommendation models were evaluated using the same training/test
+split and the same eligible evaluation users.
 
-- Training interactions: 80,149
-- Test interactions: 20,047
-- Shared evaluation users: 767
-- Eligible held-out interactions: 788
+Evaluation details:
 
-Reported shared-evaluation results:
+- Training interactions: 79,827
+- Test interactions: 19,958
+- Shared evaluation users: 1,393
+- Eligible held-out interactions: 1,451
 
-| Model | Precision@5 | Recall@5 |
-|---|---:|---:|
-| Popularity baseline | 0.007040 | 0.035202 |
-| ALS | 0.007040 | 0.035202 |
+### Model Performance
 
-The models produced identical aggregate metrics in this run. Further
-investigation of recommendation overlap and ranking behavior is needed
-before concluding that either method is better.
+| Model | Precision@5 | Recall@5 | Total Hits |
+|---|---:|---:|---:|
+| Popularity Baseline | 0.007179 | 0.033381 | 50 |
+| ALS Collaborative Filtering | 0.009189 | 0.045585 | 64 |
 
-These metrics measure recovery of held-out purchase interactions, not
-customer satisfaction. The random interaction split does not simulate
-future purchases as directly as a time-based evaluation.
+ALS achieved approximately 28.0% higher Precision@5 and 36.6% higher
+Recall@5 than the popularity baseline in this evaluation.
+
+Both models were evaluated on the same held-out interactions.
+These results represent one random train/test split and do not establish
+general superiority. A time-based evaluation would provide a more
+realistic simulation of future purchases.
 
 ## 8. Output Locations
 
