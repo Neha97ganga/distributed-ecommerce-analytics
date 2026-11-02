@@ -206,7 +206,7 @@ def evaluate(name, recommendations):
         )
     )
 
-    print(f"\\n{name} - total hits:")
+    print(f"\n{name} - total hits:")
     print(per_user.agg(F.sum("hits")).first()[0])
 
     print(f"{name} - users grouped by hit count:")

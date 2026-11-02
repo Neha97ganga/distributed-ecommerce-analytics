@@ -45,8 +45,8 @@ plt.close()
 
 # Chart 3: Shared recommender evaluation
 models = ["Popularity", "ALS"]
-precision = [0.0070404172, 0.0070404172]
-recall = [0.0352020860, 0.0352020860]
+precision = [0.007179, 0.009189]
+recall = [0.033381, 0.045585]
 
 plt.figure(figsize=(8, 5))
 plt.bar(models, [x * 100 for x in precision])

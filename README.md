@@ -132,6 +132,13 @@ Popularity recommendations:
 Shared evaluation metrics:
 `/ecommerce/recommendations/model_comparison`
 
+Category revenue with English names:
+`/ecommerce/analytics/category_revenue_enriched`
+
+Monthly delivery analytics:
+`/ecommerce/analytics/monthly_delivery` (from `ecommerce_orders_analytics.py`)
+and `/ecommerce/analytics/monthly_delivery_v2` (from `monthly_delivery_spark.py`)
+
 ## 9. Visualizations
 
 Charts are generated in:
@@ -146,10 +153,10 @@ and recommendation evaluation metrics.
 Example commands from the development environment:
 
 ```bash
-spark-submit ~/category_revenue_spark.py
-spark-submit ~/product_recommender.py
-spark-submit ~/popularity_baseline.py
-spark-submit ~/compare_recommenders.py
+spark-submit scripts/category_revenue_spark.py
+spark-submit scripts/product_recommender.py
+spark-submit scripts/popularity_baseline.py
+spark-submit scripts/compare_recommenders.py
 ```
 
 Some scripts depend on the WSL Spark installation and the configured
@@ -159,8 +166,10 @@ Spark ML scripts.
 
 ## 11. Limitations and Future Work
 
-- Investigate why ALS and popularity produce identical evaluation metrics.
-- Compare recommendations on the exact same users and inspect ranking overlap.
+- The ALS lead over popularity is small (64 vs 50 hits on 1,451 eligible
+  held-out interactions); repeat the evaluation over several random splits
+  before drawing conclusions.
+- Inspect ranking overlap between ALS and popularity recommendations.
 - Explore ALS hyperparameter tuning after validating the evaluation.
 - Consider time-based train/test splitting for future-purchase evaluation.
 - Add more visualizations and automate the end-to-end pipeline.
@@ -175,7 +184,7 @@ The executable Python scripts are located in the `scripts/` directory.
 | `category_revenue_spark.py` | Distributed category revenue analytics using Spark |
 | `category_revenue_enriched.py` | Extended category revenue analysis |
 | `monthly_delivery_spark.py` | Monthly delivery analytics |
-| `ecommerce_orders_analytics.py` | E-commerce order analytics |
+| `ecommerce_orders_analytics.py` | Order analytics with monthly delivery statistics (overlaps with `monthly_delivery_spark.py`) |
 | `dataset_stats.py` | Dataset statistics |
 | `product_recommender.py` | ALS collaborative-filtering recommendations |
 | `popularity_baseline.py` | Popularity-based recommendation baseline |
